@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam清单库 - ManifestHub</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .search-container {
+            margin: 20px 0;
+        }
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .manifest-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .manifest-item {
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            background-color: #161b22;
+        }
+        .manifest-item a {
+            color: #58a6ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .manifest-item a:hover {
+            text-decoration: underline;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+        .tab.active {
+            border-bottom: 2px solid #f78166;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="Logo" class="logo">
+        <h1>Steam清单库 - ManifestHub</h1>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('all')">所有清单</div>
+        <div class="tab" onclick="switchTab('recent')">最近更新</div>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="搜索AppID..." oninput="searchManifests()">
+    </div>
+
+    <div id="loading" class="loading">加载中...</div>
+    <div id="manifestList" class="manifest-list"></div>
+
+    <script>
+        // 存储所有清单文件夹的数据
+        let allManifests = [];
+        let currentTab = 'all';
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchManifests();
+        });
+
+        // 获取清单文件夹列表
+        function fetchManifests() {
+            document.getElementById('loading').style.display = 'block';
+            
+            // 使用GitHub API获取仓库内容
+            fetch('https://api.github.com/repos/wodidabaob/qingdancangku/contents')
+                .then(response => response.json())
+                .then(data => {
+                    allManifests = data.filter(item => item.type === 'dir')
+                        .map(dir => {
+                            return {
+                                name: dir.name,
+                                path: dir.path,
+                                url: dir.html_url
+                            };
+                        })
+                        .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+                    
+                    displayManifests(allManifests);
+                    document.getElementById('loading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching manifests:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('manifestList').innerHTML = '<p>加载失败，请刷新页面重试</p>';
+                });
+        }
+
+        // 显示清单列表
+        function displayManifests(manifests) {
+            const manifestListElement = document.getElementById('manifestList');
+            manifestListElement.innerHTML = '';
+
+            if (manifests.length === 0) {
+                manifestListElement.innerHTML = '<p>没有找到匹配的清单</p>';
+                return;
+            }
+
+            manifests.forEach(manifest => {
+                const manifestElement = document.createElement('div');
+                manifestElement.className = 'manifest-item';
+                manifestElement.innerHTML = `
+                    <a href="${manifest.url}" target="_blank">${manifest.name}</a>
+                `;
+                manifestListElement.appendChild(manifestElement);
+            });
+        }
+
+        // 搜索清单
+        function searchManifests() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                displayManifests(allManifests);
+                return;
+            }
+
+            const filteredManifests = allManifests.filter(manifest => 
+                manifest.name.toLowerCase().includes(searchTerm)
+            );
+            
+            displayManifests(filteredManifests);
+        }
+
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // 更新标签样式
+            document.querySelectorAll('.tab').forEach(element => {
+                element.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // 根据标签显示不同内容
+            if (tab === 'all') {
+                displayManifests(allManifests);
+            } else if (tab === 'recent') {
+                // 这里可以根据实际情况排序或筛选，目前简单地反转列表
+                const recentManifests = [...allManifests].reverse();
+                displayManifests(recentManifests);
+            }
+        }
+    </script>
+</body>
+</html> 
